@@ -1,21 +1,10 @@
-// Graphics LCD Example
+// Graphics LCD Driver
 // Jason Losh
 
 //-----------------------------------------------------------------------------
 // Hardware Target
 //-----------------------------------------------------------------------------
 
-// Target Platform: EK-TM4C123GXL with LCD/Keyboard Interface
-// Target uC:       TM4C123GH6PM
-// System Clock:    40 MHz
-
-// Hardware configuration:
-// Red Backlight LED:
-//   PB5 drives an NPN transistor that powers the red LED
-// Green Backlight LED:
-//   PE5 drives an NPN transistor that powers the green LED
-// Blue Backlight LED:
-//   PE4 drives an NPN transistor that powers the blue LED
 // ST7565R Graphics LCD Display Interface:
 //   MOSI (SSI2Tx) on PB7
 //   MISO (SSI2Rx) is not used by the LCD display but the pin is used for GPIO for A0
@@ -28,21 +17,8 @@
 //-----------------------------------------------------------------------------
 
 #include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
 #include "tm4c123gh6pm.h"
-
-#define RED_BL_LED   (*((volatile uint32_t *)(0x42000000 + (0x400053FC-0x40000000)*32 + 5*4)))
-#define GREEN_BL_LED (*((volatile uint32_t *)(0x42000000 + (0x400243FC-0x40000000)*32 + 5*4)))
-#define BLUE_BL_LED  (*((volatile uint32_t *)(0x42000000 + (0x400243FC-0x40000000)*32 + 4*4)))
-
-#define CS_NOT       (*((volatile uint32_t *)(0x42000000 + (0x400053FC-0x40000000)*32 + 1*4)))
-#define A0           (*((volatile uint32_t *)(0x42000000 + (0x400053FC-0x40000000)*32 + 6*4)))
-
-// Set pixel arguments
-#define CLEAR  0
-#define SET    1
-#define INVERT 2
+#include "graphics_lcd.h"
 
 //-----------------------------------------------------------------------------
 // Global variables
@@ -168,67 +144,6 @@ const uint8_t charGen[100][5] = {
 // Subroutines
 //-----------------------------------------------------------------------------
 
-// Initialize Hardware
-void initHw()
-{
-	// Configure HW to work with 16 MHz XTAL, PLL enabled, system clock of 40 MHz
-    SYSCTL_RCC_R = SYSCTL_RCC_XTAL_16MHZ | SYSCTL_RCC_OSCSRC_MAIN | SYSCTL_RCC_USESYSDIV | (4 << SYSCTL_RCC_SYSDIV_S);
-
-    // Set GPIO ports to use APB (not needed since default configuration -- for clarity)
-    // Note UART on port A must use APB
-    SYSCTL_GPIOHBCTL_R = 0;
-
-    // Enable GPIO port B and E peripherals
-    SYSCTL_RCGC2_R = SYSCTL_RCGC2_GPIOB | SYSCTL_RCGC2_GPIOE;
-
-    // Configure three backlight LEDs
-    GPIO_PORTB_DIR_R |= 0x20;  // make bit5 an output
-    GPIO_PORTB_DR2R_R |= 0x20; // set drive strength to 2mA
-    GPIO_PORTB_DEN_R |= 0x20;  // enable bit5 for digital
-    GPIO_PORTE_DIR_R |= 0x30;  // make bits 4 and 5 outputs
-    GPIO_PORTE_DR2R_R |= 0x30; // set drive strength to 2mA
-    GPIO_PORTE_DEN_R |= 0x30;  // enable bits 4 and 5 for digital
-
-    // Configure A0 and ~CS for graphics LCD
-    GPIO_PORTB_DIR_R |= 0x42;  // make bits 1 and 6 outputs
-    GPIO_PORTB_DR2R_R |= 0x42; // set drive strength to 2mA
-    GPIO_PORTB_DEN_R |= 0x42;  // enable bits 1 and 6 for digital
-
-    // Configure SSI2 pins for SPI configuration
-    SYSCTL_RCGCSSI_R |= SYSCTL_RCGCSSI_R2;           // turn-on SSI2 clocking
-    GPIO_PORTB_DIR_R |= 0x90;                        // make bits 4 and 7 outputs
-    GPIO_PORTB_DR2R_R |= 0x90;                       // set drive strength to 2mA
-	GPIO_PORTB_AFSEL_R |= 0x90;                      // select alternative functions for MOSI, SCLK pins
-    GPIO_PORTB_PCTL_R = GPIO_PCTL_PB7_SSI2TX | GPIO_PCTL_PB4_SSI2CLK; // map alt fns to SSI2
-    GPIO_PORTB_DEN_R |= 0x90;                        // enable digital operation on TX, CLK pins
-    GPIO_PORTB_PUR_R |= 0x10;                        // must be enabled when SPO=1
-
-    // Configure the SSI2 as a SPI master, mode 3, 8bit operation, 1 MHz bit rate
-    SSI2_CR1_R &= ~SSI_CR1_SSE;                      // turn off SSI2 to allow re-configuration
-    SSI2_CR1_R = 0;                                  // select master mode
-    SSI2_CC_R = 0;                                   // select system clock as the clock source
-    SSI2_CPSR_R = 40;                                // set bit rate to 1 MHz (if SR=0 in CR0)
-    SSI2_CR0_R = SSI_CR0_SPH | SSI_CR0_SPO | SSI_CR0_FRF_MOTO | SSI_CR0_DSS_8; // set SR=0, mode 3 (SPH=1, SPO=1), 8-bit
-    SSI2_CR1_R |= SSI_CR1_SSE;                       // turn on SSI2
-}
-
-// Approximate busy waiting (in units of microseconds), given a 40 MHz system clock
-void waitMicrosecond(uint32_t us)
-{
-	__asm("WMS_LOOP0:   MOV  R1, #6");          // 1
-    __asm("WMS_LOOP1:   SUB  R1, #1");          // 6
-    __asm("             CBZ  R1, WMS_DONE1");   // 5+1*3
-    __asm("             NOP");                  // 5
-    __asm("             NOP");                  // 5
-    __asm("             B    WMS_LOOP1");       // 5*2 (speculative, so P=1)
-    __asm("WMS_DONE1:   SUB  R0, #1");          // 1
-    __asm("             CBZ  R0, WMS_DONE0");   // 1
-	__asm("             NOP");                  // 1
-    __asm("             B    WMS_LOOP0");       // 1*2 (speculative, so P=1)
-    __asm("WMS_DONE0:");                        // ---
-                                                // 40 clocks/us + error
-}
-
 // Blocking function that writes data to the SPI bus and waits for the data to complete transmission
 void sendGraphicsLcdCommand(uint8_t command)
 {
@@ -264,7 +179,7 @@ void setGraphicsLcdPage(uint8_t page)
 
 void setGraphicsLcdColumn(uint8_t x)
 {
-  sendGraphicsLcdCommand(0x10 | (x >> 4));
+  sendGraphicsLcdCommand(0x10 | ((x >> 4) & 0x0F));
   sendGraphicsLcdCommand(0x00 | (x & 0x0F));
 }
 
@@ -423,40 +338,4 @@ void putsGraphicsLcd(char str[])
     uint8_t i = 0;
     while (str[i] != 0)
         putcGraphicsLcd(str[i++]);
-}
-
-//-----------------------------------------------------------------------------
-// Main
-//-----------------------------------------------------------------------------
-
-int main(void)
-{
-    // Initialize hardware
-    initHw();
-
-    // Turn-on all LEDs to create white backlight
-    RED_BL_LED = 1;
-    GREEN_BL_LED = 1;
-    BLUE_BL_LED = 1;
-
-    // Initialize graphics LCD
-    initGraphicsLcd();
-
-    // Draw X in left half of screen
-    uint8_t i;
-    for (i = 0; i < 64; i++)
-        drawGraphicsLcdPixel(i, i, SET);
-    for (i = 0; i < 64; i++)
-        drawGraphicsLcdPixel(63-i, i, INVERT);
-
-    // Draw text on screen
-    setGraphicsLcdTextPosition(84, 5);
-    putsGraphicsLcd("Text");
-
-    // Draw flashing block around the text
-    while(1)
-    {
-        drawGraphicsLcdRectangle(83, 39, 25, 9, INVERT);
-        waitMicrosecond(500000);
-    }
 }
