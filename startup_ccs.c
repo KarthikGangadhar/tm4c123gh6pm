@@ -59,8 +59,8 @@ extern uint32_t __STACK_TOP;
 //
 //*****************************************************************************
 
-extern void Timer1Isr(void);                // Refer to TIMER1 handler in freq_time.c
-extern void WideTimer5Isr(void);            // Refer to WTIMER5 handler in freq_time.c
+extern void Uart0Isr(void);                 // Refer to UART0 handler in keyboard.c
+extern void keyboardIsr(void);              // Refer to TIMER1 handler in keyboard.c
 
 #pragma DATA_SECTION(g_pfnVectors, ".intvecs")
 void (* const g_pfnVectors[])(void) =
@@ -87,7 +87,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // GPIO Port C
     IntDefaultHandler,                      // GPIO Port D
     IntDefaultHandler,                      // GPIO Port E
-    IntDefaultHandler,                      // UART0 Rx and Tx (modified)
+    Uart0Isr,                               // UART0 Rx and Tx (modified)
     IntDefaultHandler,                      // UART1 Rx and Tx
     IntDefaultHandler,                      // SSI0 Rx and Tx
     IntDefaultHandler,                      // I2C0 Master and Slave
@@ -103,7 +103,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // Watchdog timer
     IntDefaultHandler,                      // Timer 0 subtimer A
     IntDefaultHandler,                      // Timer 0 subtimer B
-    Timer1Isr,                              // Timer 1 subtimer A
+    keyboardIsr,                            // Timer 1 subtimer A
     IntDefaultHandler,                      // Timer 1 subtimer B
     IntDefaultHandler,                      // Timer 2 subtimer A
     IntDefaultHandler,                      // Timer 2 subtimer B
@@ -186,7 +186,7 @@ void (* const g_pfnVectors[])(void) =
     IntDefaultHandler,                      // Wide Timer 3 subtimer B
     IntDefaultHandler,                      // Wide Timer 4 subtimer A
     IntDefaultHandler,                      // Wide Timer 4 subtimer B
-    WideTimer5Isr,                          // Wide Timer 5 subtimer A
+    IntDefaultHandler,                      // Wide Timer 5 subtimer A
     IntDefaultHandler,                      // Wide Timer 5 subtimer B
     IntDefaultHandler,                      // FPU
     0,                                      // Reserved
