@@ -23,10 +23,12 @@
 // Global variables
 //-----------------------------------------------------------------------------
 
+// Columns 0-3 connected to PA6, PA7, PD2, PD3
 #define COL0 (*((volatile uint32_t *)(0x42000000 + (0x400043FC-0x40000000)*32 + 6*4)))
 #define COL1 (*((volatile uint32_t *)(0x42000000 + (0x400043FC-0x40000000)*32 + 7*4)))
 #define COL2 (*((volatile uint32_t *)(0x42000000 + (0x400073FC-0x40000000)*32 + 2*4)))
 #define COL3 (*((volatile uint32_t *)(0x42000000 + (0x400073FC-0x40000000)*32 + 3*4)))
+// Rows 0-3 connected to PE1, PE2, PE3, PF1
 #define ROW0 (*((volatile uint32_t *)(0x42000000 + (0x400243FC-0x40000000)*32 + 1*4)))
 #define ROW1 (*((volatile uint32_t *)(0x42000000 + (0x400243FC-0x40000000)*32 + 2*4)))
 #define ROW2 (*((volatile uint32_t *)(0x42000000 + (0x400243FC-0x40000000)*32 + 3*4)))
