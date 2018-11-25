@@ -76,33 +76,36 @@ void initHw()
     GPIO_PORTF_PUR_R = 0x10;  // enable internal pull-up for push button
 
     // Configure keyboard
+	
     // Columns 0-3 connected to PA6, PA7, PD2, PD3
-    // Rows 0-3 connected to PE1, PE2, PE3, PF1
     GPIO_PORTA_DIR_R |= 0xC0;  // bits 6 and 7 are outputs
-    GPIO_PORTD_DIR_R |= 0x0C;  // bits 2 and 3 are outputs
     GPIO_PORTA_DEN_R |= 0xC0;  // bits 6 and 7 are digital
+    GPIO_PORTA_ODR_R |= 0xC0;  // bits 6 and 7 are open drain outputs
+
+    GPIO_PORTD_DIR_R |= 0x0C;  // bits 2 and 3 are outputs
     GPIO_PORTD_DEN_R |= 0x0C;  // bits 2 and 3 are digital
+    GPIO_PORTD_ODR_R |= 0x0C;  // bits 2 and 3 are open drain outputs
+	
+    // Rows 0-3 connected to PE1, PE2, PE3, PF1
     GPIO_PORTE_DEN_R |= 0x0E;  // bits 1-3 are digital
     GPIO_PORTF_DEN_R |= 0x02;  // bit 1 is digital
-    GPIO_PORTA_ODR_R |= 0xC0;  // bits 6 and 7 are outputs
-    GPIO_PORTD_ODR_R |= 0x0C;  // bits 2 and 3 are outputs
     GPIO_PORTE_PUR_R = 0x0E;  // enable internal pull-up for rows 0-2
     GPIO_PORTF_PUR_R = 0x02;  // enable internal pull-up for row 3
 
     // Configure UART0 pins
-	SYSCTL_RCGCUART_R |= SYSCTL_RCGCUART_R0;         // turn-on UART0, leave other uarts in same status
+    SYSCTL_RCGCUART_R |= SYSCTL_RCGCUART_R0;         // turn-on UART0, leave other uarts in same status
     GPIO_PORTA_DEN_R |= 3;                           // default, added for clarity
-	GPIO_PORTA_AFSEL_R |= 3;                         // default, added for clarity
+    GPIO_PORTA_AFSEL_R |= 3;                         // default, added for clarity
     GPIO_PORTA_PCTL_R = GPIO_PCTL_PA1_U0TX | GPIO_PCTL_PA0_U0RX;
 
    	// Configure UART0 to 115200 baud, 8N1 format (must be 3 clocks from clock enable and config writes)
     UART0_CTL_R = 0;                                 // turn-off UART0 to allow safe programming
-	UART0_CC_R = UART_CC_CS_SYSCLK;                  // use system clock (40 MHz)
+    UART0_CC_R = UART_CC_CS_SYSCLK;                  // use system clock (40 MHz)
     UART0_IBRD_R = 21;                               // r = 40 MHz / (Nx115.2kHz), set floor(r)=21, where N=16
     UART0_FBRD_R = 45;                               // round(fract(r)*64)=45
     UART0_LCRH_R = UART_LCRH_WLEN_8; // configure for 8N1 w/o FIFO
     UART0_CTL_R = UART_CTL_TXE | UART_CTL_RXE | UART_CTL_UARTEN; // enable TX, RX, and module
-	UART0_IM_R = UART_IM_RXIM;                       // turn-on RX interrupt
+    UART0_IM_R = UART_IM_RXIM;                       // turn-on RX interrupt
     NVIC_EN0_R |= 1 << (INT_UART0-16);               // turn-on interrupt 21 (UART0)
 
     // Configure Timer 1 for keyboard service
