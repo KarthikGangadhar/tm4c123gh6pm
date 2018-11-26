@@ -74,3 +74,19 @@
 #define INT_UART7               79          // UART7
 
 F(cycle) = (F/ (16 * Baud_Rate))
+    
+    // Configure SSI2 pins for SPI configuration
+    SYSCTL_RCGCSSI_R |= SYSCTL_RCGCSSI_R2;           // turn-on SSI2 clocking
+    GPIO_PORTB_DIR_R |= 0x90;                        // make bits 4 and 7 outputs
+    GPIO_PORTB_DR2R_R |= 0x90;                       // set drive strength to 2mA
+	GPIO_PORTB_AFSEL_R |= 0x90;                      // select alternative functions for MOSI, SCLK pins
+    GPIO_PORTB_PCTL_R = GPIO_PCTL_PB7_SSI2TX | GPIO_PCTL_PB4_SSI2CLK; // map alt fns to SSI2
+    GPIO_PORTB_DEN_R |= 0x90;                        // enable digital operation on TX, CLK pins
+
+    // Configure the SSI2 as a SPI master, mode 3, 8bit operation, 1 MHz bit rate
+    SSI2_CR1_R &= ~SSI_CR1_SSE;                      // turn off SSI2 to allow re-configuration
+    SSI2_CR1_R = 0;                                  // select master mode
+    SSI2_CC_R = 0;                                   // select system clock as the clock source
+    SSI2_CPSR_R = 40;                                // set bit rate to 1 MHz (if SR=0 in CR0)
+    SSI2_CR0_R = SSI_CR0_SPH | SSI_CR0_SPO | SSI_CR0_FRF_MOTO | SSI_CR0_DSS_8; // set SR=0, mode 3 (SPH=1, SPO=1), 8-bit
+    SSI2_CR1_R |= SSI_CR1_SSE;                       // turn on SSI2    
